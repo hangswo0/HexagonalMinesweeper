@@ -19,12 +19,11 @@ public class MinesweeperController {
         } catch (Exception e) {
             model.startGame();
         }
-        view.init();
+        view.init(gameSettings[0], gameSettings[1]);
     }
 
     void onLeftClick(int strIndex, int cellIndex) {
         model.openCell(strIndex, cellIndex);
-        view.synkWithModel();
         if (model.isWin()) {
             view.showWinMessage();
             startNewGame();
@@ -35,11 +34,9 @@ public class MinesweeperController {
     }
 
     void onRightClick(int strIndex, int cellIndex) {
-        model.setFlag(strIndex, cellIndex);
-        boolean state = false;
         if (model.getCell(strIndex, cellIndex).flagged())
-            state = true;
-        view.blockCell(strIndex, cellIndex, state);
-        view.synkWithModel();
+            model.setFlag(strIndex, cellIndex);
+        else
+            model.removeFlag(strIndex, cellIndex);
     }
 }

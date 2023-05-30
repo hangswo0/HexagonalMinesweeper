@@ -1,94 +1,124 @@
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
+import java.util.ArrayList;
+import java.util.Objects;
 
 public class MinesweeperView extends JFrame {
-
     MinesweeperModel model;
     MinesweeperController controller;
+    JFrame frame;
+    private JPanel panel;
+    private final int IMAGE_HEIGHT = 50;
+    private final int IMAGE_WIDTH = 43;
+    private int size;
 
-    public void init() {
+    MinesweeperView(MinesweeperModel model) {
+        this.model = model;
+    }
+
+    void init(int side, int countBomb) {
+        size = model.getSideCount();
         setTitle("HexagonalMinesweeper");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setResizable(false);
+        /*JMenuBar menuBar = new JMenuBar();
+        JMenu gameMenu = new JMenu("Game");
+        JMenuItem newGameMenuItem = new JMenuItem("New game");
+        newGameMenuItem.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                controller.startNewGame();
+            }
+        });
+        gameMenu.add(newGameMenuItem);
+        menuBar.add(gameMenu);
+        frame.setJMenuBar(menuBar);*/
+        initPanel(size);
+        pack();
+        setLocationRelativeTo(null);
         setVisible(true);
-        setSize(400, 400);
-        JPanel panel = new JPanel(new GridLayout(1, 2));
-        panel.add(createBoard(7));
+    }
+
+    private void initPanel(int size) {
+        panel = new JPanel(new GridLayout(size, size));
+        for (int i = 0; i < size; i++) {
+            for (int j = 0; j < size; j++) {
+                MinesweeperCell cell = model.getCell(i, j);
+                if (cell == null)
+                    continue;
+                JPanel cellPanel = new JPanel();
+                cellPanel.setPreferredSize(new Dimension(IMAGE_WIDTH, IMAGE_HEIGHT));
+                int finalI = i;
+                int finalJ = j;
+                cellPanel.addMouseListener(new MouseAdapter() {
+                    @Override
+                    public void mouseClicked(MouseEvent e) {
+                        if (cell.notFlagged()) {
+                            if (e.getButton() == MouseEvent.BUTTON1)
+                                controller.onLeftClick(finalI, finalJ);
+                            else if (e.getButton() == MouseEvent.BUTTON3)
+                                controller.onRightClick(finalI, finalJ);
+                        }
+                    }
+                });
+                cellPanel.add(new JLabel((Icon) getImage(getState(i, j))));
+                panel.add(cellPanel);
+            }
+        }
         add(panel);
-        setVisible(true);
+    }
+
+    private String getState(int strInd, int cellInd) {
+        MinesweeperCell cell = model.getCell(strInd, cellInd);
+        String name = "";
+        if (cell != null) {
+            if (model.isGameOver() && cell.mined())
+                name = "bombed";
+            if (cell.closed())
+                name = "closed";
+            if (cell.opened()) {
+                name = "opened";
+                panel.repaint();
+                if (cell.empty())
+                    name = "zero";
+                else if (cell.getCountBomb() > 0)
+                    name = String.valueOf(cell.getCountBomb());
+                else if (cell.mined())
+                    name = "bombed";
+            } else if (cell.flagged())
+                name = "flagged";
+        }
+        return name;
+    }
+
+    private Image getImage(String name) {
+        String fileName = "img/" + name + ".png";
+        ImageIcon icon = new ImageIcon(getClass().getResource(fileName));
+        return icon.getImage();
     }
 
     int[] getGameSettings() {
-        return new int[]{5, 8}; //доделать
-    }
-
-    private JButton createBoard(int strCount) {
-        JButton button = new JButton() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-                int[] xStartCoordinates = {50, 70, 90, 90, 70, 50}; //это координаты ПЕРВОГО блока в строке, они меняются только при переходе на новую строку
-                int[] yStartCoordinates = {300, 280, 300, 320, 340, 320};
-                for (int strInd = strCount / 2; strInd >= 0; strInd--) { //строим последовательно строчки от серединной вверх
-                    if (strInd < strCount / 2) //если это не серединная строка, то координаты начальной клетки меняются
-                        for (int i = 0; i < xStartCoordinates.length; i++) {
-                            xStartCoordinates[i] += 20; //это обеспечивает ровное смещение клеток, чтобы строчки блоков ложились ровно
-                            yStartCoordinates[i] -= 40;
-                        }
-                    int[] xCoordinates = new int[6];
-                    System.arraycopy(xStartCoordinates, 0, xCoordinates, 0, xStartCoordinates.length);
-                    int blockCount = (strCount / 2 + 1) + strInd; //количество блоков в строке зависит от её индекса
-                    while (blockCount != 0) { //выполняем этот цикл, пока не нарисуем все блоки в строке
-                        g.setColor(Color.GRAY);
-                        g.fillPolygon(xCoordinates, yStartCoordinates, 6);
-                        g.setColor(Color.BLACK);
-                        g.drawPolygon(xCoordinates, yStartCoordinates, 6);
-                        blockCount--;
-                        for (int num = 0; num < 6; num++) { //координаты каждого следующего блока в строке немного смещаются
-                            xCoordinates[num] += 40;
-                        }
-                    }//достроить нижнюю часть поля
-                }
-            }
-        };
-        button.setBorderPainted(false);
-        button.setFocusPainted(false);
-        return button;
-    }
-
-    void synkWithModel() { //синхронизация с моделью
-
-    }
-
-    void blockCell(int strInd, int cellInd, boolean block) {
-        JButton[][] buttons = new JButton[model.getSideCount()][model.getSideCount()];
-        JButton button = buttons[strInd][cellInd];
-        if (block) {
-            button.addMouseListener(new MouseAdapter() {
-                @Override
-                public void mouseClicked(MouseEvent e) {
-                    e.consume();
-                }
-            });
-        } else {
-            for (MouseListener listener : button.getMouseListeners()) {
-                button.removeMouseListener(listener);
-            }
-        }
+        JTextField cellsField = new JTextField();
+        JTextField bombField = new JTextField();
+        Object[] message = {"Side size (min 4, max 9):", cellsField, "Number of bomb (min 7):", bombField};
+        int option = JOptionPane.showConfirmDialog(frame, message, "Game settings", JOptionPane.OK_CANCEL_OPTION);
+        if (option == JOptionPane.OK_OPTION) {
+            int cells = Integer.parseInt(cellsField.getText());
+            int bombs = Integer.parseInt(bombField.getText());
+            return new int[]{cells, bombs};
+        } else
+            return null;
     }
 
     void showWinMessage() {
-        JWindow window = new JWindow();
-        JLabel label = new JLabel("Поздравляем! Вы победили!");
-        JButton button = new JButton("ОК");
+        JOptionPane.showMessageDialog(frame, "You won! :D");
     }
 
     void showGameOverMessage() {
-        JWindow window = new JWindow();
-        JLabel label = new JLabel("Игра окончена! Вы проиграли!");
-        JButton button = new JButton("ОК");
+        JOptionPane.showMessageDialog(frame, "You lose! :(");
     }
+
 }

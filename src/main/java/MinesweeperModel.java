@@ -2,6 +2,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MinesweeperModel {
+    private MinesweeperView view;
+    private MinesweeperController controller;
 
     private int side; //количество блоков в одной стороне шестиугольника
     private boolean firstStep;
@@ -13,8 +15,11 @@ public class MinesweeperModel {
     private static final int MAX_SIDE_SIZE = 9;
 
     private static final int MIN_MINE_COUNT = 7;
-    private static final int MAX_MINE_COUNT = 40; //возможно надо создать число, генерирующееся автоматически в зависимости от стороны поля
 
+    public void MinesweeperModel(MinesweeperView view, MinesweeperController controller) {
+        this.view = view;
+        this.controller = controller;
+    }
     public void startGame(int side, int mineCount) {
         int cellsCount = 1;
         int s = 1;
@@ -24,25 +29,25 @@ public class MinesweeperModel {
         }
         if (side >= MIN_SIDE_SIZE && side <= MAX_SIDE_SIZE)
             this.side = side;
-        if (mineCount >= MIN_MINE_COUNT && mineCount <= MAX_MINE_COUNT && mineCount < cellsCount)
+        else
+            side = MIN_SIDE_SIZE;
+        if (mineCount >= MIN_MINE_COUNT && mineCount < cellsCount)
             this.mineCount = mineCount;
+        else
+            mineCount = MIN_MINE_COUNT;
         this.firstStep = true;
         this.gameOver = false;
         this.cells = new MinesweeperCell[side * 2 - 1][side * 2 - 1];
-        int startIndCellUp = 0;  //индекс, с которого начинаются ячейки в конкретной строке
-        while (startIndCellUp < side * 2 - 1) { //этот цикл закончится, когда индекс ячейки В СТРОКЕ станет равен длине серединной строки
-            for (int strIndexUp = side - 1; strIndexUp >= 0; strIndexUp--) //этот цикл перебирает индексы строк от серединной (включительно) до первой
-                for (int cellIndex = startIndCellUp; cellIndex < side * 2 - 1; cellIndex++) //этот цикл перебирает индексы клетки В СТРОКЕ (у каждой строки разный начальный индекс)
-                    cells[strIndexUp][cellIndex] = new MinesweeperCell();
-            startIndCellUp++;
-        }
-        int startIndCellDown = 1;
-        while (startIndCellDown < side * 2 - 1) { //здесь всё то же самое, но от серединной строки (не включительно) до последней
-            for (int strIndexDown = side; strIndexDown < side * 2 - 1; strIndexDown++)
-                for (int cellIndex = startIndCellDown; cellIndex < side * 2 - 1; cellIndex++)
-                    cells[strIndexDown][cellIndex] = new MinesweeperCell();
-            startIndCellDown++;
-        }
+        for (int strIndUp = side - 1; strIndUp >= 0; strIndUp--)
+            for (int cellInd = (side - 1) - strIndUp; cellInd < side * 2 - 1; cellInd++) {
+                cells[strIndUp][cellInd] = new MinesweeperCell();
+                cells[strIndUp][cellInd].setEmpty();
+            }
+        for (int strIndDown = side; strIndDown < side * 2 - 1; strIndDown++)
+            for (int cellInd = (strIndDown % side) + 1; cellInd < side * 2 - 1; cellInd++) {
+                cells[strIndDown][cellInd] = new MinesweeperCell();
+                cells[strIndDown][cellInd].setEmpty();
+            }
     }
 
     public void startGame() {
@@ -50,19 +55,16 @@ public class MinesweeperModel {
         this.gameOver = false;
         this.cells = new MinesweeperCell[MIN_SIDE_SIZE * 2 - 1][MIN_SIDE_SIZE * 2 - 1];
         int startIndCellUp = 0;
-        while (startIndCellUp < MIN_SIDE_SIZE) {
-            for (int strIndexUp = MIN_SIDE_SIZE - 1; strIndexUp >= 0; strIndexUp--)
-                for (int cellIndex = startIndCellUp; cellIndex < MIN_SIDE_SIZE * 2 - 1; cellIndex++)
-                    cells[strIndexUp][cellIndex] = new MinesweeperCell();
-            startIndCellUp++;
-        }
-        int startIndCellDown = 1;
-        while (startIndCellDown < MIN_SIDE_SIZE) {
-            for (int strIndexDown = MIN_SIDE_SIZE; strIndexDown < MIN_SIDE_SIZE * 2 - 1; strIndexDown++)
-                for (int cellIndex = startIndCellDown; cellIndex < MIN_SIDE_SIZE * 2 - 1; cellIndex++)
-                    cells[strIndexDown][cellIndex] = new MinesweeperCell();
-            startIndCellDown++;
-        }
+        for (int strIndUp = MIN_SIDE_SIZE - 1; strIndUp >= 0; strIndUp--)
+            for (int cellInd = (MIN_SIDE_SIZE - 1) - strIndUp; cellInd < MIN_SIDE_SIZE * 2 - 1; cellInd++) {
+                cells[strIndUp][cellInd] = new MinesweeperCell();
+                cells[strIndUp][cellInd].setEmpty();
+            }
+        for (int strIndDown = MIN_SIDE_SIZE; strIndDown < MIN_SIDE_SIZE * 2 - 1; strIndDown++)
+            for (int cellInd = (strIndDown % MIN_SIDE_SIZE) + 1; cellInd < MIN_SIDE_SIZE * 2 - 1; cellInd++) {
+                cells[strIndDown][cellInd] = new MinesweeperCell();
+                cells[strIndDown][cellInd].setEmpty();
+            }
     }
 
     MinesweeperCell getCell(int strIndex, int cellIndex) {
@@ -75,6 +77,11 @@ public class MinesweeperModel {
     void setFlag(int strInd, int cellInd) {
         if (cells[strInd][cellInd].closed() && cells[strInd][cellInd].notFlagged())
             cells[strInd][cellInd].flagged();
+    }
+
+    void removeFlag(int strInd, int cellInd) {
+        if (cells[strInd][cellInd].closed() && cells[strInd][cellInd].flagged())
+            cells[strInd][cellInd].notFlagged();
     }
 
     boolean isWin() {
@@ -138,8 +145,8 @@ public class MinesweeperModel {
         while (mines < mineCount) {
             int si = (int) (Math.random() * (side * 2 - 1)); //случайный индекс строки
             int ci = (int) (Math.random() * (side * 2 - 1)); //случайный индекс ячейски в строке
-            if (cells[si][ci] != null /*&& cells[si][ci].empty() */) {
-                cells[si][ci].mined();
+            if (cells[si][ci] != null && cells[si][ci].empty()) {
+                cells[si][ci].setMined();
                 mines++;
             }
         }
@@ -157,12 +164,12 @@ public class MinesweeperModel {
 
     int countMinesAround(int strIndex, int cellIndex) {
         List<MinesweeperCell> neighbours = getNeighbours(strIndex, cellIndex);
-        int count = 0;
+        int countBombNear = 0;
         for (MinesweeperCell n : neighbours) {
             if (n.mined())
-                count++;
+                countBombNear++;
         }
-        return count;
+        return countBombNear;
     }
 
     //этот метод нужен для вьюхи
